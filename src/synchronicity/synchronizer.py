@@ -77,6 +77,16 @@ def _type_requires_aio_usage(annotation, declaration_module):
     return False
 
 
+class classproperty(object):
+    """Read-only class property recognized by Synchronizer."""
+
+    def __init__(self, fget):
+        self.fget = fget
+
+    def __get__(self, obj, owner):
+        return self.fget(owner)
+
+
 def should_have_aio_interface(func):
     # determines if a blocking function gets an .aio attribute with an async interface to the function or not
     if is_coroutine_function_follow_wrapped(func) or is_async_gen_function_follow_wrapped(func):
@@ -629,6 +639,10 @@ class Synchronizer:
                 )
         return property(**kwargs)
 
+    def _wrap_proxy_classproperty(self, prop, interface):
+        wrapped_func = self._wrap_proxy_method(prop.fget, interface, allow_futures=False, include_aio_interface=False)
+        return classproperty(fget=wrapped_func)
+
     def _wrap_proxy_constructor(synchronizer_self, cls, interface):
         """Returns a custom __init__ for the subclass."""
 
@@ -694,6 +708,8 @@ class Synchronizer:
                 new_dict[k] = self._wrap_proxy_classmethod(v, Interface.BLOCKING)
             elif isinstance(v, property):
                 new_dict[k] = self._wrap_proxy_property(v, Interface.BLOCKING)
+            elif isinstance(v, classproperty):
+                new_dict[k] = self._wrap_proxy_classproperty(v, Interface.BLOCKING)
             elif isinstance(v, MethodWithAio):
                 # if library defines its own MethodWithAio descriptor we transfer it "as is" to the wrapper
                 # without wrapping it again
