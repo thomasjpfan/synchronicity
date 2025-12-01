@@ -7,7 +7,11 @@ jobs:
   tag-and-release:
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      contents: read
+      # IMPORTANT: this permission is mandatory for Trusted Publishing
+      id-token: write
+    environment:
+      name: publish
 
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -16,12 +20,5 @@ jobs:
         with:
           version: "0.9.10"
 
-      - name: Config git user
-        run: |
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-      - name: Create and push tag
-        run: |
-          TAG=v$(uv version --short)
-          git tag $TAG
-          git push origin $TAG
+      - name: Build
+        run: uv build
